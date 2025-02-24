@@ -15,7 +15,7 @@ public class CurrencyExchangeApiClient : ICurrencyExchangeApiClient
 
     public async Task<decimal> GetCurrencyExchangeRateAsync(string baseCurrency, string targetCurrency)
     {
-        string apiUrl = $"{_configuration["ExchangeApi:BaseUrl"]}?base={baseCurrency}&symbols={targetCurrency}&apikey={_configuration["ExchangeApi:ApiKey"]}";
+        string apiUrl = $"{_configuration["CurrencyExchangeApi:BaseUrl"]}?base={baseCurrency}&symbols={targetCurrency}&apikey={_configuration["CurrencyExchangeApi:ApiKey"]}";
 
         var response = await _httpClient.GetAsync(apiUrl);
         if (!response.IsSuccessStatusCode)
