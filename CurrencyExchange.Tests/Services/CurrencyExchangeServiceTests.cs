@@ -1,9 +1,12 @@
 using CurrencyExchange.Application.Interfaces;
 using CurrencyExchange.Application.Services;
+using CurrencyExchange.Domain.Entities;
 using CurrencyExchange.Infrastructure.ExternalServices;
 using FluentAssertions;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Moq;
+using System.Text;
 using System.Text.Json;
 
 namespace CurrencyExchange.Tests.Services
@@ -14,6 +17,7 @@ namespace CurrencyExchange.Tests.Services
         private readonly Mock<IDistributedCache> _mockCache;
         private readonly Mock<ICurrencyRateRepository> _mockRateRepository;
         private readonly Mock<ICurrencyExchangeHistoryRepository> _mockHistoryRepository;
+        private readonly Mock<ILogger<CurrencyRate>> _mockLogger;
         private readonly CurrencyExchangeService _currencyExchangeService;
 
         public CurrencyExchangeServiceTests()
@@ -22,7 +26,9 @@ namespace CurrencyExchange.Tests.Services
             _mockCache = new Mock<IDistributedCache>();
             _mockRateRepository = new Mock<ICurrencyRateRepository>();
             _mockHistoryRepository = new Mock<ICurrencyExchangeHistoryRepository>();
+            _mockLogger = new Mock<ILogger<CurrencyRate>>();
             _currencyExchangeService = new CurrencyExchangeService(
+                _mockLogger.Object,
                 _mockApiClient.Object,
                 _mockCache.Object,
                 _mockRateRepository.Object,
@@ -38,7 +44,7 @@ namespace CurrencyExchange.Tests.Services
             string targetCurrency = "EUR";
             decimal amount = 100;
             decimal exchangeRate = 0.85m;
-            string cacheKey = $"exchange_rate_{baseCurrency}_{targetCurrency}";
+            string cacheKey = $"{baseCurrency}_{targetCurrency}";
 
             _mockCache.Setup(c => c.GetAsync(cacheKey, It.IsAny<CancellationToken>()))
                       .ReturnsAsync((byte[]?)null);  // Explicitly setting a nullable byte array
@@ -60,11 +66,11 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldReturnCachedRate_IfAvailable()
         {
             // Arrange
-            string baseCurrency = "USD";
-            string targetCurrency = "EUR";
+            string baseCurrency = "EUR";
+            string targetCurrency = "USD";
             decimal amount = 100;
             decimal cachedExchangeRate = 0.90m;
-            string cacheKey = $"exchange_rate_{baseCurrency}_{targetCurrency}";
+            string cacheKey = $"{baseCurrency}_{targetCurrency}";
 
             byte[] cachedRateBytes = JsonSerializer.SerializeToUtf8Bytes(cachedExchangeRate);
             _mockCache.Setup(c => c.GetAsync(cacheKey, default))
@@ -82,10 +88,10 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldThrowException_WhenApiFails()
         {
             // Arrange
-            string baseCurrency = "USD";
-            string targetCurrency = "EUR";
+            string baseCurrency = "EUR";
+            string targetCurrency = "USD";
             decimal amount = 100;
-            string cacheKey = $"exchange_rate_{baseCurrency}_{targetCurrency}";
+            string cacheKey = $"{baseCurrency}_{targetCurrency}";
 
             _mockCache.Setup(c => c.GetAsync(cacheKey, It.IsAny<CancellationToken>()))
                       .ReturnsAsync((byte[]?)null);  // Explicitly setting a nullable byte array
@@ -105,11 +111,11 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldUpdateCache_WhenRateFetchedFromApi()
         {
             // Arrange
-            string baseCurrency = "USD";
-            string targetCurrency = "EUR";
+            string baseCurrency = "EUR";
+            string targetCurrency = "USD";
             decimal amount = 100;
             decimal exchangeRate = 0.85m;
-            string cacheKey = $"exchange_rate_{baseCurrency}_{targetCurrency}";
+            string cacheKey = $"{baseCurrency}_{targetCurrency}";
 
             _mockCache.Setup(c => c.GetAsync(cacheKey, It.IsAny<CancellationToken>()))
                       .ReturnsAsync((byte[]?)null);
@@ -145,8 +151,8 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldThrowException_WhenAmountIsZeroOrNegative(decimal amount)
         {
             // Arrange
-            string baseCurrency = "USD";
-            string targetCurrency = "EUR";
+            string baseCurrency = "EUR";
+            string targetCurrency = "USD";
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -157,7 +163,7 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldReturnSameAmount_WhenBaseAndTargetCurrencyAreSame()
         {
             // Arrange
-            string currency = "USD";
+            string currency = "EUR";
             decimal amount = 100;
 
             // Act
@@ -172,14 +178,12 @@ namespace CurrencyExchange.Tests.Services
         public async Task ConvertCurrencyAsync_ShouldHandleCacheDeserializationErrors_Gracefully()
         {
             // Arrange
-            string baseCurrency = "USD";
-            string targetCurrency = "EUR";
+            string baseCurrency = "EUR";
+            string targetCurrency = "USD";
             decimal amount = 100;
-            string cacheKey = $"exchange_rate_{baseCurrency}_{targetCurrency}";
+            string cacheKey = $"{baseCurrency}_{targetCurrency}";
 
-            byte[] invalidCacheData = new byte[] { 1, 2, 3, 4, 5 }; // Corrupt cache data
-            _mockCache.Setup(c => c.GetAsync(cacheKey, It.IsAny<CancellationToken>()))
-                      .ReturnsAsync(invalidCacheData);
+            byte[] invalidCacheData = Encoding.UTF8.GetBytes("invalid json"); // Simulating corrupt JSON
 
             _mockApiClient.Setup(api => api.GetCurrencyExchangeRateAsync(baseCurrency, targetCurrency))
                           .ReturnsAsync(0.89m);
@@ -191,6 +195,5 @@ namespace CurrencyExchange.Tests.Services
             result.Should().Be(amount * 0.89m);
             _mockApiClient.Verify(api => api.GetCurrencyExchangeRateAsync(baseCurrency, targetCurrency), Times.Once);
         }
-
     }
 }

@@ -29,6 +29,7 @@ builder.Services.AddScoped<ICurrencyExchangeHistoryRepository, CurrencyExchangeH
 builder.Services.AddScoped<ICurrencyExchangeService, CurrencyExchangeService>();
 builder.Services.AddHttpClient<ICurrencyExchangeApiClient, CurrencyExchangeApiClient>();
 
+builder.Services.AddLogging();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
