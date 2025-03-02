@@ -66,13 +66,13 @@ namespace CurrencyExchange.Application.Services
                     new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15) });
 
                 // Persist the rate in the database
-                await _rateRepository.SaveRateAsync(new CurrencyRate(baseCurrency, targetCurrency, exchangeRate));
+                await _rateRepository.SaveRateAsync(new CurrencyRate(amount, baseCurrency, targetCurrency, exchangeRate));
             }
 
             decimal convertedAmount = amount * exchangeRate;
 
             // Save conversion history
-            await _historyRepository.SaveExchangeHistoryAsync(new CurrencyExchangeHistory(baseCurrency, targetCurrency, exchangeRate, convertedAmount));
+            await _historyRepository.SaveExchangeHistoryAsync(new CurrencyExchangeHistory(amount, baseCurrency, targetCurrency, exchangeRate, convertedAmount));
 
             return convertedAmount;
         }
